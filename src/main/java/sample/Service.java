@@ -15,38 +15,19 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Date;
 
-import static java.util.Objects.nonNull;
-
-
 public class Service {
     final int placeDateOnYahoo = 0;
     final int placeCloseRateOnYahoo = 4;
 
-    public boolean checkDates(DatePicker datePickerStart, DatePicker datePickerEnd, DatePicker datePickerClose) {
-        if (nonNull(datePickerStart.getValue())
-                && nonNull(datePickerEnd.getValue())
-                && nonNull(datePickerClose.getValue())
-        ) {
-            long start = getSecsFromDate(datePickerStart);
-            long end = getSecsFromDate(datePickerEnd);
-            long close = getSecsFromDate(datePickerClose);
-            if (start > end || start > close || close > end) {
-                return false;
-            }
-        } else {
-            return false;
-        }
-        return true;
-    }
-
-    public String getUrl(String prefix, DatePicker datePickerStart, DatePicker datePickerEnd) {
-        // todo ссылка на таблицу
+    public String getUrlFromCloseDate(String prefix, DatePicker datePickerClose) {
+        String dateStart = Long.toString(getSecsFromDate(datePickerClose) - 24 * 60 * 60);
+        String dateFinish = Long.toString(getSecsFromDate(datePickerClose) + 24 * 60 * 60);
         return "https://finance.yahoo.com/quote/"
                 + prefix
                 + "/history?period1="
-                + getSecsFromDate(datePickerStart)
+                + dateStart
                 + "&period2="
-                + getSecsFromDate(datePickerEnd)
+                + dateFinish
                 + "&interval=1d&filter=history&frequency=1d";
     }
 
@@ -57,8 +38,7 @@ public class Service {
         return zdt.toInstant().toEpochMilli() / 1000;
     }
 
-    public String getValueFromSite(String url, DatePicker datePickerClose) {
-        try {
+    public String getValueFromSite(String url, DatePicker datePickerClose) throws IOException, ParseException {
             Document doc = Jsoup.connect(url).get();
             SimpleDateFormat oldDateFormat = new SimpleDateFormat("MMM dd, yyyy");
             SimpleDateFormat newDateFormat = new SimpleDateFormat("yyyy-MM-dd");
@@ -76,14 +56,6 @@ public class Service {
                     }
                 }
             }
-        } catch (IOException e) {
-            System.out.println("11111111");
-            e.printStackTrace();
-
-        } catch (ParseException e) {
-            System.out.println("222222222");
-            e.printStackTrace();
-        }
         return "";
     }
 
@@ -102,5 +74,11 @@ public class Service {
             is.close();
             os.close();
         }
+    }
+
+    public String getNewFileNameForData(String path, DatePicker datePickerClose) {
+        StringBuffer sb = new StringBuffer(path);
+        sb.delete(sb.length() - 5, sb.length());
+        return (sb + "-result-" + datePickerClose.getValue().toString() + ".xlsx");
     }
 }
