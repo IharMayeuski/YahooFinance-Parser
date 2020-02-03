@@ -1,4 +1,4 @@
-package sample;
+package by.parser.sample;
 
 import javafx.geometry.HPos;
 import javafx.geometry.Insets;

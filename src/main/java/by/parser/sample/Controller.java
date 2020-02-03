@@ -1,3 +1,3 @@
-package sample;
+package by.parser.sample;
 
 public class Controller { }
