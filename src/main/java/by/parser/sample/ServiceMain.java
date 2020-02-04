@@ -21,6 +21,7 @@ import java.time.ZonedDateTime;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.Callable;
 
 class ServiceMain {
     private final int placeDateOnYahoo = 0;
@@ -47,25 +48,21 @@ class ServiceMain {
         return myElements;
     }
 
-    Map<Map.Entry<Integer, String>, String> getValueFromYahoo(Map<Integer, String> myElements, DatePicker datePickerClose) {
-        Map<Map.Entry<Integer, String>, String> elementsForFillInFill = new HashMap<>();
+    Map<Integer, String> getValueFromYahoo(Map<Integer, String> myElements, DatePicker datePickerClose) {
+        Map<Integer, Document> documentMap = new HashMap<>();
         for (final Map.Entry<Integer, String> entry : myElements.entrySet()) {
             String url = getUrlFromCloseDate(entry.getValue(), datePickerClose);
             try {
-                String course = getValueFromSite(url, datePickerClose);
-                elementsForFillInFill.put(entry, course);
+                Document doc = Jsoup.connect(url).get();
+                documentMap.put(entry.getKey(), doc);
             } catch (Exception e) {
-                elementsForFillInFill.put(entry, NOT_FOUND);
+                e.printStackTrace();
             }
         }
-        return elementsForFillInFill;
+        return getValueFromDoc(documentMap, datePickerClose);
     }
 
-    void writeResultInFile(
-            File fileSource,
-            DatePicker datePickerClose,
-            Map<Map.Entry<Integer, String>, String> elementsForFillInFill
-    ) {
+    void writeResultInFile(File fileSource, DatePicker datePickerClose, Map<Integer, String> elementsForFillInFill) {
         try {
             String fileName = getNewFileNameForData(fileSource.getPath(), datePickerClose);
             File fileForCopy = new File(fileName);
@@ -74,8 +71,8 @@ class ServiceMain {
             FileInputStream newFile = new FileInputStream(new File(fileForCopy.getPath()));
             Workbook workbook = new XSSFWorkbook(newFile);
             Sheet sheet = workbook.getSheet("Sheet1");
-            for (final Map.Entry<Map.Entry<Integer, String>, String> oneElement : elementsForFillInFill.entrySet()) {
-                Row oneRow = sheet.getRow(oneElement.getKey().getKey());
+            for (final Map.Entry<Integer, String> oneElement : elementsForFillInFill.entrySet()) {
+                Row oneRow = sheet.getRow(oneElement.getKey());
                 sheet.getRow(oneRow.getRowNum()).createCell(11).setCellValue(oneElement.getValue());
             }
             newFile.close();
@@ -107,8 +104,7 @@ class ServiceMain {
         return zdt.toInstant().toEpochMilli() / 1000;
     }
 
-    private String getValueFromSite(String url, DatePicker datePickerClose) throws IOException, ParseException {
-        Document doc = Jsoup.connect(url).get();
+    private String getValueFromSite(Document doc, DatePicker datePickerClose) throws IOException, ParseException {
         SimpleDateFormat oldDateFormat = new SimpleDateFormat("MMM dd, yyyy");
         SimpleDateFormat newDateFormat = new SimpleDateFormat("yyyy-MM-dd");
 
@@ -159,5 +155,20 @@ class ServiceMain {
             unswer = totalTimeInSec + " secs";
         }
         return unswer;
+    }
+
+    private Map<Integer, String> getValueFromDoc (Map<Integer, Document> documentMap, DatePicker datePickerClose) {
+        Map<Integer, String> elementsForFillInFill = new HashMap<>();
+        for (Map.Entry<Integer, Document> oneDoc: documentMap.entrySet()) {
+            try {
+                String course = getValueFromSite(oneDoc.getValue(), datePickerClose);
+                elementsForFillInFill.put(oneDoc.getKey(), course);
+            } catch (IOException e) {
+                elementsForFillInFill.put(oneDoc.getKey(), NOT_FOUND);
+            } catch (ParseException e) {
+                elementsForFillInFill.put(oneDoc.getKey(), NOT_FOUND);
+            }
+        }
+        return elementsForFillInFill;
     }
 }
