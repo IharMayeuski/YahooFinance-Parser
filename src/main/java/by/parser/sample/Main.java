@@ -46,15 +46,15 @@ public class Main extends Application {
             public void handle(ActionEvent event) {
                 ServiceMain service = new ServiceMain();
                 long timeStart = System.currentTimeMillis() / 1000;
-                boolean mistakeFlag = false;
-                int countMistake = 0;
-
                 if (nonNull(fileSource) && nonNull(datePickerClose.getValue())) {
                     Map<Integer, String> elementsFromSourceFile = service.getElementsFromSourceFile(fileSource.getPath());
-                    Map<Map.Entry<Integer, String>, String> elementsForFillInFill = service.getValueFromYahoo(elementsFromSourceFile, datePickerClose);
-
+                    Map<Integer, String> elementsForFillInFill = service.getValueFromYahoo(elementsFromSourceFile, datePickerClose);
                     service.writeResultInFile(fileSource, datePickerClose, elementsForFillInFill);
-                    for (final Map.Entry<Map.Entry<Integer, String>, String> element: elementsForFillInFill.entrySet()) {
+
+                    boolean mistakeFlag = elementsFromSourceFile.size() != elementsForFillInFill.size();
+                    int countMistake = elementsFromSourceFile.size() - elementsForFillInFill.size();
+
+                    for (final Map.Entry<Integer, String> element: elementsForFillInFill.entrySet()) {
                         if (element.getValue().equals(NOT_FOUND)) {
                             mistakeFlag = true;
                             ++countMistake;
