@@ -18,15 +18,66 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.Callable;
+import java.util.*;
+import java.util.concurrent.*;
+
+import static java.util.Objects.nonNull;
 
 class ServiceMain {
     private final int placeDateOnYahoo = 0;
     private final int placeCloseRateOnYahoo = 4;
     private final String NOT_FOUND = "--";
+
+    class getValueFromYahoo implements Callable {
+        private Map.Entry<Integer, String> entry;
+        private DatePicker datePickerClose;
+
+        public getValueFromYahoo(Map.Entry<Integer, String> entry, DatePicker datePickerClose) {
+            this.entry = entry;
+            this.datePickerClose = datePickerClose;
+        }
+
+
+        public Map<Integer, Document> call() {
+            Map<Integer, Document> elementsForFillInFill = new HashMap<>();
+            try {
+                String url = getUrlFromCloseDate(entry.getValue(), datePickerClose);
+                Document doc = Jsoup.connect(url).get();
+                elementsForFillInFill.put(entry.getKey(), doc);
+            } catch (IOException e) {
+                elementsForFillInFill.put(entry.getKey(), null);
+                System.out.print(entry.getKey() + ", ");
+            }
+            return elementsForFillInFill;
+        }
+    }
+
+    Map<Integer, String> getValueFromYahoo(Map<Integer, String> myElements, DatePicker datePickerClose) {
+        Map<Integer, Document> documentMap = new HashMap<>();
+        ExecutorService pool = Executors.newFixedThreadPool(32);
+        Set<Future<Map<Integer, Document>>> set = new HashSet<>();
+
+        for (final Map.Entry<Integer, String> entry : myElements.entrySet()) {
+            Callable<Map<Integer, Document>> callable = new getValueFromYahoo(entry, datePickerClose);
+            Future<Map<Integer, Document>> future = pool.submit(callable);
+            set.add(future);
+        }
+
+        for (Future<Map<Integer, Document>> future : set) {
+            try {
+                Map<Integer, Document> OneFuture = future.get();
+                for (Map.Entry<Integer, Document> myEntry : OneFuture.entrySet()) {
+                    documentMap.put(myEntry.getKey(), myEntry.getValue());
+                }
+            } catch (InterruptedException e) {
+                System.out.println("1");
+            } catch (ExecutionException e) {
+                System.out.println("2");
+            }
+
+        }
+        return getValueFromDoc(documentMap, datePickerClose);
+    }
 
     Map<Integer, String> getElementsFromSourceFile(String path) {
         Map<Integer, String> myElements = new HashMap<>();
@@ -46,20 +97,6 @@ class ServiceMain {
             System.out.println("can't receive info from url: " + path);
         }
         return myElements;
-    }
-
-    Map<Integer, String> getValueFromYahoo(Map<Integer, String> myElements, DatePicker datePickerClose) {
-        Map<Integer, Document> documentMap = new HashMap<>();
-        for (final Map.Entry<Integer, String> entry : myElements.entrySet()) {
-            String url = getUrlFromCloseDate(entry.getValue(), datePickerClose);
-            try {
-                Document doc = Jsoup.connect(url).get();
-                documentMap.put(entry.getKey(), doc);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-        return getValueFromDoc(documentMap, datePickerClose);
     }
 
     void writeResultInFile(File fileSource, DatePicker datePickerClose, Map<Integer, String> elementsForFillInFill) {
@@ -104,7 +141,7 @@ class ServiceMain {
         return zdt.toInstant().toEpochMilli() / 1000;
     }
 
-    private String getValueFromSite(Document doc, DatePicker datePickerClose) throws IOException, ParseException {
+    private String getValueFromSite(Document doc, DatePicker datePickerClose) throws Exception{
         SimpleDateFormat oldDateFormat = new SimpleDateFormat("MMM dd, yyyy");
         SimpleDateFormat newDateFormat = new SimpleDateFormat("yyyy-MM-dd");
 
@@ -163,10 +200,9 @@ class ServiceMain {
             try {
                 String course = getValueFromSite(oneDoc.getValue(), datePickerClose);
                 elementsForFillInFill.put(oneDoc.getKey(), course);
-            } catch (IOException e) {
-                elementsForFillInFill.put(oneDoc.getKey(), NOT_FOUND);
-            } catch (ParseException e) {
-                elementsForFillInFill.put(oneDoc.getKey(), NOT_FOUND);
+            } catch (Exception e) {
+                elementsForFillInFill.put(oneDoc.getKey(), "");
+                System.out.println("3");
             }
         }
         return elementsForFillInFill;
