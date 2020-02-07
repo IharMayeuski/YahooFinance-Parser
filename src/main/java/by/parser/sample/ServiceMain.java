@@ -12,7 +12,6 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import java.io.*;
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -21,22 +20,17 @@ import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.concurrent.*;
 
-import static java.util.Objects.nonNull;
+import static by.parser.sample.Constant.*;
 
 class ServiceMain {
-    private final int placeDateOnYahoo = 0;
-    private final int placeCloseRateOnYahoo = 4;
-    private final String NOT_FOUND = "--";
-
-    class getValueFromYahoo implements Callable {
+    class ValueFromYahoo implements Callable {
         private Map.Entry<Integer, String> entry;
         private DatePicker datePickerClose;
 
-        public getValueFromYahoo(Map.Entry<Integer, String> entry, DatePicker datePickerClose) {
+        public ValueFromYahoo(Map.Entry<Integer, String> entry, DatePicker datePickerClose) {
             this.entry = entry;
             this.datePickerClose = datePickerClose;
         }
-
 
         public Map<Integer, Document> call() {
             Map<Integer, Document> elementsForFillInFill = new HashMap<>();
@@ -46,7 +40,6 @@ class ServiceMain {
                 elementsForFillInFill.put(entry.getKey(), doc);
             } catch (IOException e) {
                 elementsForFillInFill.put(entry.getKey(), null);
-                System.out.print(entry.getKey() + ", ");
             }
             return elementsForFillInFill;
         }
@@ -54,27 +47,24 @@ class ServiceMain {
 
     Map<Integer, String> getValueFromYahoo(Map<Integer, String> myElements, DatePicker datePickerClose) {
         Map<Integer, Document> documentMap = new HashMap<>();
-        ExecutorService pool = Executors.newFixedThreadPool(32);
+        ExecutorService pool = Executors.newFixedThreadPool(THREAD);
         Set<Future<Map<Integer, Document>>> set = new HashSet<>();
 
         for (final Map.Entry<Integer, String> entry : myElements.entrySet()) {
-            Callable<Map<Integer, Document>> callable = new getValueFromYahoo(entry, datePickerClose);
+            Callable<Map<Integer, Document>> callable = new ValueFromYahoo(entry, datePickerClose);
             Future<Map<Integer, Document>> future = pool.submit(callable);
             set.add(future);
         }
 
         for (Future<Map<Integer, Document>> future : set) {
             try {
-                Map<Integer, Document> OneFuture = future.get();
-                for (Map.Entry<Integer, Document> myEntry : OneFuture.entrySet()) {
+                Map<Integer, Document> oneFuture = future.get();
+                for (Map.Entry<Integer, Document> myEntry : oneFuture.entrySet()) {
                     documentMap.put(myEntry.getKey(), myEntry.getValue());
                 }
-            } catch (InterruptedException e) {
-                System.out.println("1");
-            } catch (ExecutionException e) {
-                System.out.println("2");
+            } catch (InterruptedException | ExecutionException e) {
+                e.printStackTrace();
             }
-
         }
         return getValueFromDoc(documentMap, datePickerClose);
     }
@@ -94,7 +84,7 @@ class ServiceMain {
             }
             sourceFile.close();
         } catch (IOException e) {
-            System.out.println("can't receive info from url: " + path);
+            e.printStackTrace();
         }
         return myElements;
     }
@@ -118,7 +108,7 @@ class ServiceMain {
             workbook.close();
             outputStream.close();
         } catch (Exception e) {
-            System.out.println("can't write info in file!");
+            e.printStackTrace();
         }
     }
 
@@ -179,15 +169,13 @@ class ServiceMain {
 
     String getTimeForOutput(long timeStart, long timeFinish) {
         long totalTimeInSec = timeFinish - timeStart;
-        String unswer = "";
+        String unswer;
         if (totalTimeInSec >= 60) {
             long mins = totalTimeInSec / 60;
             long secs = totalTimeInSec % 60;
-            if (mins > 1) {
-                unswer = mins + " mins, " + secs + " secs.";
-            } else {
-                unswer = mins + " min, " + secs + " secs.";
-            }
+            unswer = mins > 1
+                    ? mins + " mins, " + secs + " secs."
+                    : mins + " min, " + secs + " secs.";
         } else {
             unswer = totalTimeInSec + " secs";
         }
@@ -201,8 +189,7 @@ class ServiceMain {
                 String course = getValueFromSite(oneDoc.getValue(), datePickerClose);
                 elementsForFillInFill.put(oneDoc.getKey(), course);
             } catch (Exception e) {
-                elementsForFillInFill.put(oneDoc.getKey(), "");
-                System.out.println("3");
+                elementsForFillInFill.put(oneDoc.getKey(), NOT_FOUND);
             }
         }
         return elementsForFillInFill;
