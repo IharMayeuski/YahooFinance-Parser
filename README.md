@@ -1,5 +1,5 @@
 # yahooParser
-This app is developed for downloading courses from YahooFinance (look description in below).
+This app is developed for downloading rates from YahooFinance (look description in below).
 This app was made in two variant (one thread and multythread), you can find file of perfomance inside (83 secs vs 5secs on 100 urls).
 Also you can find inside two jar files for comparing by yourself.
 Steps:
